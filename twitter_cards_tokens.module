@@ -1,0 +1,130 @@
+<?php
+use Drupal\Core\Render\BubbleableMetadata;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\image\Entity\ImageStyle;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\file\Entity\File;
+
+/*
+* implement hook_token_info()
+*/
+function twitter_cards_tokens_token_info(){
+  $types['twitter_cards'] = array(
+    'name' => t('Twitter Cards Tokens'),
+    'description' => t('Defines Twitter Cards Tokens')
+  );
+/*
+* Adds Twitter Cards Logo token
+*/
+	$tokens['tc_logo'] = array(
+    'name' => t('Twitter Cards Logo'),
+    'description' => t('Defines Twitter Cards Logo')
+  );
+/*
+* Adds Twitter Cards Image token
+*/
+  $tokens['tc_image'] = array(
+    'name' => t('Twitter Cards Image'),
+    'description' => t('Defines Twitter Cards Image')
+  );
+
+  return array(
+    'types' => $types,
+    'tokens' => array(
+      'twitter_cards' => $tokens
+    )
+  );
+}
+
+/*
+* implement hook_token()
+*/
+function twitter_cards_tokens_tokens($type, $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata){
+/*
+* Sets default path url
+*/
+	$modulePath = drupal_get_path('module', 'twitter_cards_tokens');
+	$host = \Drupal::request()->getSchemeAndHttpHost();
+
+/*
+* Sets default token images url
+*/
+	$tcLogo = $host . '/' . $modulePath . '/images/chief-logo.jpg';
+	$tcImage = $host . '/' .  $modulePath . '/images/chief-logo.jpg';
+/*
+* Check to make sure it's a node
+*/
+ $node = \Drupal::routeMatch()->getParameter( 'node' );
+	if ($node instanceof \Drupal\node\NodeInterface ) {
+		$nid = $node->id();
+	    $typeName = $node->bundle();
+
+/*
+* Checks for Event content type
+* Checks content type if either exist field_logo field or field_event_series taxonomy
+*/
+	if($typeName == 'events'){
+		if($node->get('field_logo')->getValue()){
+			$tcCheck = TRUE;
+			$tcCheckLogo = TRUE;
+			$tcCheckTaxonomy = NULL;
+		}elseif($node->get('field_event_series')->getValue()){
+			$tcCheck = TRUE;
+			$tcCheckLogo = NULL;
+			$tcCheckTaxonomy = TRUE;
+		}else{
+			$tcCheck = NULL;
+		}
+/*
+* Replaces default $tcLogo token image
+* \Drupal::entityTypeManager()->getStorage($entity_type)->load(id);
+*/
+		if($tcCheck){
+			if($tcCheckLogo){
+			$tcLogo = ImageStyle::load('browser_thumbnail')->buildUrl($node->field_logo->entity->getFileUri());
+
+			}elseif($tcCheckTaxonomy){
+				$tid = $node->get('field_event_series')->getValue()[0]['target_id'];
+				$tcTerm = Term::load($tid);
+			$tcLogo = ImageStyle::load('browser_thumbnail')->buildUrl($tcTerm->field_series_image->entity->getFileUri());
+		}
+
+		}
+/*
+* Checks for Blog content type
+* Checks content type if field_image exist
+*/
+	}elseif($typeName == 'blog'){
+		if($node->get('field_image')->getValue()){
+			$tcCheck = TRUE;
+		}else{
+			$tcCheck = NULL;
+		}
+/*
+* Replaces default $tcImage token image
+*/
+		if($tcCheck){
+		   		$tcImage = ImageStyle::load('browser_thumbnail')->buildUrl($node->field_image->entity->getFileUri());
+			}
+
+	}
+	}
+/*
+* Swaps image url for token
+*/
+  $replacements = array();
+  if($type == 'twitter_cards') {
+
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+		case 'tc_logo':
+			$replacements[$original] = $tcLogo;
+			break;
+        case 'tc_image':
+			$replacements[$original] = $tcImage;
+			break;
+      }
+    }
+  }
+  return $replacements;
+}

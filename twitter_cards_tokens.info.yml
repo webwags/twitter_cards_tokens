@@ -1,0 +1,8 @@
+name: Twitter Cards Tokens
+description: Creates tokens for default images and logos
+type: module
+package: Custom
+core: 8.x
+dependencies:
+  - drupal:metatag
+  - drupal:metatag_twitter_cards
